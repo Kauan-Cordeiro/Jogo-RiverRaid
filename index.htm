@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>River Raid Básico</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #000;
+            color: white;
+        }
+
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+
+        .game-area {
+            position: relative;
+            width: 400px;
+            height: 600px;
+            background-color: #1a1a1a;
+            border: 2px solid #fff;
+            overflow: hidden;
+        }
+
+        .player-plane {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            background-color: blue;
+            top: 500px;
+            left: 180px;
+            border-radius: 20%;
+        }
+
+        .enemy, .fuel-tank, .bullet {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+        }
+
+        .enemy {
+            background-color: red;
+        }
+
+        .fuel-tank {
+            background-color: yellow;
+        }
+
+        .bullet {
+            background-color: white;
+            width: 5px;
+            height: 15px;
+        }
+
+        .hud {
+            display: flex;
+            justify-content: space-between;
+            width: 400px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="game-area" id="game-area">
+            <div class="player-plane" id="player-plane"></div>
+        </div>
+        <div class="hud">
+            <div>Vidas: <span id="lives">3</span></div>
+            <div>Pontuação: <span id="score">0</span></div>
+            <div>Combustível: <span id="fuel">100</span>%</div>
+        </div>
+    </div>
+    <script>
+        const gameArea = document.getElementById('game-area');
+        const playerPlane = document.getElementById('player-plane');
+        const scoreDisplay = document.getElementById('score');
+        const livesDisplay = document.getElementById('lives');
+        const fuelDisplay = document.getElementById('fuel');
+
+        let score = 0;
+        let lives = 3;
+        let fuel = 100;
+        let gameInterval;
+        let fuelConsumptionRate = 0.05;
+
+        // Movimento do avião
+        let planeSpeed = 5;
+        let planeX = 180;
+        let planeY = 500;
+
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'ArrowLeft' && planeX > 0) {
+                planeX -= planeSpeed;
+            }
+            if (event.key === 'ArrowRight' && planeX < 360) {
+                planeX += planeSpeed;
+            }
+            if (event.key === 'ArrowUp' && planeY > 0) {
+                planeY -= planeSpeed;
+            }
+            if (event.key === 'ArrowDown' && planeY < 560) {
+                planeY += planeSpeed;
+            }
+            playerPlane.style.left = planeX + 'px';
+            playerPlane.style.top = planeY + 'px';
+        });
+
+        // Tiro automático
+        function fireBullet() {
+            const bullet = document.createElement('div');
+            bullet.classList.add('bullet');
+            bullet.style.left = (planeX + 17) + 'px';
+            bullet.style.top = (planeY - 20) + 'px';
+            gameArea.appendChild(bullet);
+
+            let bulletInterval = setInterval(function() {
+                let bulletY = parseInt(bullet.style.top);
+                bullet.style.top = (bulletY - 5) + 'px';
+                if (bulletY < 0) {
+                    bullet.remove();
+                    clearInterval(bulletInterval);
+                }
+                checkCollisionWithEnemies(bullet);
+            }, 10);
+        }
+
+        // Função para adicionar inimigos
+        function spawnEnemy() {
+            const enemy = document.createElement('div');
+            enemy.classList.add('enemy');
+            enemy.style.left = Math.random() * 370 + 'px';
+            enemy.style.top = '0px';
+            gameArea.appendChild(enemy);
+
+            let enemyInterval = setInterval(function() {
+                let enemyY = parseInt(enemy.style.top);
+                enemy.style.top = (enemyY + 2) + 'px';
+                if (enemyY > 600) {
+                    enemy.remove();
+                    clearInterval(enemyInterval);
+                }
+                checkCollisionWithPlayer(enemy);
+            }, 20);
+        }
+
+        // Colisão com o avião
+        function checkCollisionWithPlayer(enemy) {
+            let enemyRect = enemy.getBoundingClientRect();
+            let playerRect = playerPlane.getBoundingClientRect();
+
+            if (enemyRect.left < playerRect.right &&
+                enemyRect.right > playerRect.left &&
+                enemyRect.top < playerRect.bottom &&
+                enemyRect.bottom > playerRect.top) {
+                lives--;
+                livesDisplay.textContent = lives;
+                enemy.remove();
+                if (lives <= 0) {
+                    gameOver();
+                }
+            }
+        }
+
+        // Colisão com os tiros
+        function checkCollisionWithEnemies(bullet) {
+            let enemies = document.getElementsByClassName('enemy');
+            for (let enemy of enemies) {
+                let bulletRect = bullet.getBoundingClientRect();
+                let enemyRect = enemy.getBoundingClientRect();
+
+                if (bulletRect.left < enemyRect.right &&
+                    bulletRect.right > enemyRect.left &&
+                    bulletRect.top < enemyRect.bottom &&
+                    bulletRect.bottom > enemyRect.top) {
+                    score += 100;
+                    scoreDisplay.textContent = score;
+                    enemy.remove();
+                    bullet.remove();
+                }
+            }
+        }
+
+        // Função para adicionar combustível
+        function spawnFuelTank() {
+            const fuelTank = document.createElement('div');
+            fuelTank.classList.add('fuel-tank');
+            fuelTank.style.left = Math.random() * 370 + 'px';
+            fuelTank.style.top = '0px';
+            gameArea.appendChild(fuelTank);
+
+            let fuelInterval = setInterval(function() {
+                let fuelY = parseInt(fuelTank.style.top);
+                fuelTank.style.top = (fuelY + 2) + 'px';
+                if (fuelY > 600) {
+                    fuelTank.remove();
+                    clearInterval(fuelInterval);
+                }
+                checkCollisionWithFuel(fuelTank);
+            }, 20);
+        }
+
+        // Colisão com o combustível
+        function checkCollisionWithFuel(fuelTank) {
+            let fuelRect = fuelTank.getBoundingClientRect();
+            let playerRect = playerPlane.getBoundingClientRect();
+
+            if (fuelRect.left < playerRect.right &&
+                fuelRect.right > playerRect.left &&
+                fuelRect.top < playerRect.bottom &&
+                fuelRect.bottom > playerRect.top) {
+                fuel = Math.min(100, fuel + 20);
+                fuelDisplay.textContent = fuel;
+                fuelTank.remove();
+            }
+        }
+
+        // Consumo de combustível
+        function consumeFuel() {
+            fuel -= fuelConsumptionRate;
+            fuelDisplay.textContent = Math.max(0, Math.floor(fuel));
+            if (fuel <= 0) {
+                gameOver();
+            }
+        }
+
+        // Game over
+        function gameOver() {
+            clearInterval(gameInterval);
+            alert('Game Over! Sua pontuação: ' + score);
+            window.location.reload();
+        }
+
+        // Início do jogo
+        function startGame() {
+            gameInterval = setInterval(function() {
+                fireBullet();
+                spawnEnemy();
+                spawnFuelTank();
+                consumeFuel();
+            }, 1000);
+        }
+
+        startGame();
+    </script>
+</body>
+</html>
